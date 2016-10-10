@@ -135,3 +135,13 @@ form input[type=text], form input[type=password] {
 .creator .message {
   clear: both;
 }
+
+.login {
+  height: 50px;
+  padding: 10px;
+}
+
+.signup {
+  height: 50px;
+  padding: 10px;
+}
