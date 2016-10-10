@@ -40,16 +40,6 @@ function(req, res) {
   });
 });
 
-app.get('/signup',
-function(req, res) {
-  res.render('signup');
-});
-
-app.get('/login',
-function(req, res) {
-  res.render('login');
-});
-
 app.post('/links',
 function(req, res) {
   var uri = req.body.url;
@@ -86,20 +76,40 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+
+app.get('/signup',
+function(req, res) {
+  res.render('signup');
+});
+
+app.get('/login',
+function(req, res) {
+  res.render('login');
+});
+
 app.post('/login', function(request, response) {
   var username = request.body.username;
   var password = request.body.password;
-
-  if(username == '' && password == ''){
-      request.session.regenerate(function(){
+  if(username === '' && password === ''){
+    request.session.regenerate(function(){
       request.session.user = username;
       response.redirect('/restricted');
-      });
-  }
-  else {
-     res.redirect('/login');
+    });
+  } else {
+    res.redirect('/login');
   }
 });
+
+app.post('/signup', function(request, response) {
+  //store info in database
+})
+
+app.get('/logout', function(request, response){
+  request.session.destroy(function(){
+    response.redirect('/');
+  });
+});
+
 
 
 
