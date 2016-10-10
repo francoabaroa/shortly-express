@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var bcrypt = require('bcrypt-nodejs');
+// var knex = require('knex');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -22,15 +23,34 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+var checkUser = function(username, hashedPassword, callback) {
+  //select * from users where username = username;
+  return db.knex('users').where({username: username, password: hashedPassword}).then(function(rows) {
+    console.log(rows.length);
+    callback(rows.length);
+  });
+};
 
 app.get('/',
 function(req, res) {
-  res.render('index');
+  //  console.log(req);
+  checkUser('test', '2a$04$3X36OXLvv6Z7xQzdYSkeLuXjEs5xt5lvpCSQQw9fxLy3alpyyVDMi', function(bool) {
+    console.log(bool);
+    if (bool) {
+      res.render('index');
+    } else {
+      res.render('login');
+    }
+  });
 });
 
 app.get('/create',
 function(req, res) {
-  res.render('index');
+  if (checkUser('test', 'test')) {
+    res.render('index');
+  } else {
+    res.render('login');
+  }
 });
 
 app.get('/links',
@@ -87,26 +107,35 @@ function(req, res) {
   res.render('login');
 });
 
-app.post('/login', function(request, response) {
-  var username = request.body.username;
-  var password = request.body.password;
-  if(username === '' && password === ''){
-    request.session.regenerate(function(){
-      request.session.user = username;
-      response.redirect('/restricted');
-    });
-  } else {
-    res.redirect('/login');
-  }
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  // if (username === '' && password === '') {
+  //   req.session.regenerate(function() {
+  //     req.session.user = username;
+  //     res.redirect('/restricted');
+  //   });
+  // } else {
+  res.redirect('/login');
+  // }
 });
 
-app.post('/signup', function(request, response) {
-  //store info in database
-})
+app.post('/signup', function(req, res) {
+  //store info in database.
+  var username = req.body.username;
+  var password = req.body.password;
 
-app.get('/logout', function(request, response){
-  request.session.destroy(function(){
-    response.redirect('/');
+  var salt = bcrypt.genSaltSync(4);
+  var hash = bcrypt.hashSync(password, salt);
+
+  var newUser = new User({username: username, password: hash, salt: salt});
+  newUser.save();
+  res.redirect('/index');
+});
+
+app.get('/logout', function(req, res) {
+  req.session.destroy(function() {
+    res.redirect('/');
   });
 });
 
