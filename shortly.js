@@ -23,20 +23,16 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-var checkUser = function(username, hashedPassword, callback) {
+var checkUser = function(username, hashedPassword) {
   //select * from users where username = username;
-  return db.knex('users').where({username: username, password: hashedPassword}).then(function(rows) {
-    console.log(rows.length);
-    callback(rows.length);
-  });
+  return db.knex('users').where({username: username, password: hashedPassword});
 };
 
 app.get('/',
 function(req, res) {
   //  console.log(req);
-  checkUser('test', '2a$04$3X36OXLvv6Z7xQzdYSkeLuXjEs5xt5lvpCSQQw9fxLy3alpyyVDMi', function(bool) {
-    console.log(bool);
-    if (bool) {
+  checkUser(app.username, app.hashedPassword).then(function(rows) {
+    if (rows.length) {
       res.render('index');
     } else {
       res.render('login');
@@ -110,27 +106,53 @@ function(req, res) {
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
+  console.log(username);
   // if (username === '' && password === '') {
   //   req.session.regenerate(function() {
   //     req.session.user = username;
   //     res.redirect('/restricted');
   //   });
   // } else {
-  res.redirect('/login');
+  return db.knex('users').where({username: username}).then(function(rows) {
+    if (rows.length) {
+      var salt = rows[0].salt;
+      var hash = bcrypt.hashSync(password, salt);
+      return checkUser(username, hash).then(function(rows) {
+        if (rows.length) {
+          console.log('rows.length at login: ', rows.length);
+          res.redirect('/index');
+        } else {
+          console.log('redirect to login');
+          res.redirect('/login');
+        }
+      });
+    }
+  });
+
   // }
 });
 
 app.post('/signup', function(req, res) {
   //store info in database.
+  console.log(req.body);
   var username = req.body.username;
   var password = req.body.password;
 
-  var salt = bcrypt.genSaltSync(4);
-  var hash = bcrypt.hashSync(password, salt);
+  return db.knex('users').where({username: username}).then(function(rows) {
+    console.log('rows: ', rows);
+    if (rows.length) {
+      res.redirect('/login');
+    } else {
+      var salt = bcrypt.genSaltSync(4);
+      var hash = bcrypt.hashSync(password, salt);
+      var newUser = new User({username: username, password: hash, salt: salt});
+      newUser.save();
+      app.username = username;
+      app.hashedPassword = hash;
+      res.redirect('/');
+    }
+  });
 
-  var newUser = new User({username: username, password: hash, salt: salt});
-  newUser.save();
-  res.redirect('/index');
 });
 
 app.get('/logout', function(req, res) {
