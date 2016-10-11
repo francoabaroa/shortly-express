@@ -35,55 +35,69 @@ function(req, res) {
     if (rows.length) {
       res.render('index');
     } else {
-      res.render('login');
+      res.redirect('/login');
     }
   });
 });
 
 app.get('/create',
 function(req, res) {
-  if (checkUser('test', 'test')) {
-    res.render('index');
-  } else {
-    res.render('login');
-  }
+  checkUser(app.username, app.hashedPassword).then(function(rows) {
+    if (rows.length) {
+      res.render('index');
+    } else {
+      res.redirect('/login');
+    }
+  });
 });
 
 app.get('/links',
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
+  checkUser(app.username, app.hashedPassword).then(function(rows) {
+    if (rows.length) {
+      Links.reset().fetch().then(function(links) {
+        res.status(200).send(links.models);
+      });
+    } else {
+      res.redirect('/login');
+    }
   });
 });
 
 app.post('/links',
 function(req, res) {
-  var uri = req.body.url;
+  checkUser(app.username, app.hashedPassword).then(function(rows) {
+    if (rows.length) {
+      var uri = req.body.url;
 
-  if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
-    return res.sendStatus(404);
-  }
+      if (!util.isValidUrl(uri)) {
+        console.log('Not a valid url: ', uri);
+        return res.sendStatus(404);
+      }
 
-  new Link({ url: uri }).fetch().then(function(found) {
-    if (found) {
-      res.status(200).send(found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          console.log('Error reading URL heading: ', err);
-          return res.sendStatus(404);
+      new Link({ url: uri }).fetch().then(function(found) {
+        if (found) {
+          res.status(200).send(found.attributes);
+        } else {
+          util.getUrlTitle(uri, function(err, title) {
+            if (err) {
+              console.log('Error reading URL heading: ', err);
+              return res.sendStatus(404);
+            }
+
+            Links.create({
+              url: uri,
+              title: title,
+              baseUrl: req.headers.origin
+            })
+            .then(function(newLink) {
+              res.status(200).send(newLink);
+            });
+          });
         }
-
-        Links.create({
-          url: uri,
-          title: title,
-          baseUrl: req.headers.origin
-        })
-        .then(function(newLink) {
-          res.status(200).send(newLink);
-        });
       });
+    } else {
+      res.redirect('/login');
     }
   });
 });
@@ -106,7 +120,6 @@ function(req, res) {
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  console.log(username);
   // if (username === '' && password === '') {
   //   req.session.regenerate(function() {
   //     req.session.user = username;
@@ -119,13 +132,15 @@ app.post('/login', function(req, res) {
       var hash = bcrypt.hashSync(password, salt);
       return checkUser(username, hash).then(function(rows) {
         if (rows.length) {
-          console.log('rows.length at login: ', rows.length);
-          res.redirect('/index');
+          app.username = username;
+          app.hashedPassword = hash;
+          res.redirect('/');
         } else {
-          console.log('redirect to login');
           res.redirect('/login');
         }
       });
+    } else {
+      res.redirect('/login');
     }
   });
 
@@ -134,12 +149,10 @@ app.post('/login', function(req, res) {
 
 app.post('/signup', function(req, res) {
   //store info in database.
-  console.log(req.body);
   var username = req.body.username;
   var password = req.body.password;
 
   return db.knex('users').where({username: username}).then(function(rows) {
-    console.log('rows: ', rows);
     if (rows.length) {
       res.redirect('/login');
     } else {
@@ -156,9 +169,12 @@ app.post('/signup', function(req, res) {
 });
 
 app.get('/logout', function(req, res) {
-  req.session.destroy(function() {
-    res.redirect('/');
-  });
+  delete app.username;
+  delete app.hashedPassword;
+  res.redirect('/login');
+  // req.session.destroy(function() {
+  //   res.redirect('/');
+  // });
 });
 
 
