@@ -4,6 +4,7 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt-nodejs');
 var session = require('express-session');
+var _ = require('underscore');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -36,7 +37,6 @@ var checkUser = function(username, hashedPassword) {
 
 app.get('/',
 function(req, res) {
-  console.log(req.session);
   checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       res.render('index');
@@ -62,7 +62,10 @@ function(req, res) {
   checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       Links.reset().fetch().then(function(links) {
-        res.status(200).send(links.models);
+        var filteredModels = _.filter(links.models, function (model) {
+          return model.attributes.userId === req.session.userId;
+        });
+        res.status(200).send(filteredModels);
       });
     } else {
       res.redirect('/login');
@@ -80,7 +83,7 @@ function(req, res) {
         return res.sendStatus(404);
       }
 
-      new Link({ url: uri }).fetch().then(function(found) {
+      new Link({ url: uri, userId: req.session.userId}).fetch().then(function(found) {
         if (found) {
           res.status(200).send(found.attributes);
         } else {
@@ -93,7 +96,8 @@ function(req, res) {
             Links.create({
               url: uri,
               title: title,
-              baseUrl: req.headers.origin
+              baseUrl: req.headers.origin,
+              userId: req.session.userId 
             })
             .then(function(newLink) {
               res.status(200).send(newLink);
@@ -128,10 +132,13 @@ app.post('/login', function(req, res) {
   return db.knex('users').where({username: username}).then(function(rows) {
     if (rows.length) {
       var salt = rows[0].salt;
+      var id = rows[0].id;
       var hash = bcrypt.hashSync(password, salt);
       return checkUser(username, hash).then(function(rows) {
         if (rows.length) {
+          req.session.username = username;
           req.session.password = hash;
+          req.session.userId = id;
           res.redirect('/');
         } else {
           res.redirect('/login');
@@ -155,10 +162,10 @@ app.post('/signup', function(req, res) {
       var salt = bcrypt.genSaltSync(4);
       var hash = bcrypt.hashSync(password, salt);
       var newUser = new User({username: username, password: hash, salt: salt});
-      newUser.save();
       req.session.username = username;
       req.session.password = hash;
-
+      req.session.userId = newUser.cid;
+      newUser.save();
       res.redirect('/');
     }
   });
