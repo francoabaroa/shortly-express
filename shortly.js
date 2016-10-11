@@ -3,7 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt-nodejs');
-// var knex = require('knex');
+var session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -23,15 +23,21 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+app.use(session({
+  secret: 'secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {maxAge: 864000}
+}));
+
 var checkUser = function(username, hashedPassword) {
-  //select * from users where username = username;
   return db.knex('users').where({username: username, password: hashedPassword});
 };
 
 app.get('/',
 function(req, res) {
-  //  console.log(req);
-  checkUser(app.username, app.hashedPassword).then(function(rows) {
+  console.log(req.session);
+  checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       res.render('index');
     } else {
@@ -42,7 +48,7 @@ function(req, res) {
 
 app.get('/create',
 function(req, res) {
-  checkUser(app.username, app.hashedPassword).then(function(rows) {
+  checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       res.render('index');
     } else {
@@ -53,7 +59,7 @@ function(req, res) {
 
 app.get('/links',
 function(req, res) {
-  checkUser(app.username, app.hashedPassword).then(function(rows) {
+  checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       Links.reset().fetch().then(function(links) {
         res.status(200).send(links.models);
@@ -66,10 +72,9 @@ function(req, res) {
 
 app.post('/links',
 function(req, res) {
-  checkUser(app.username, app.hashedPassword).then(function(rows) {
+  checkUser(req.session.username, req.session.password).then(function(rows) {
     if (rows.length) {
       var uri = req.body.url;
-
       if (!util.isValidUrl(uri)) {
         console.log('Not a valid url: ', uri);
         return res.sendStatus(404);
@@ -120,20 +125,13 @@ function(req, res) {
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  // if (username === '' && password === '') {
-  //   req.session.regenerate(function() {
-  //     req.session.user = username;
-  //     res.redirect('/restricted');
-  //   });
-  // } else {
   return db.knex('users').where({username: username}).then(function(rows) {
     if (rows.length) {
       var salt = rows[0].salt;
       var hash = bcrypt.hashSync(password, salt);
       return checkUser(username, hash).then(function(rows) {
         if (rows.length) {
-          app.username = username;
-          app.hashedPassword = hash;
+          req.session.password = hash;
           res.redirect('/');
         } else {
           res.redirect('/login');
@@ -143,8 +141,6 @@ app.post('/login', function(req, res) {
       res.redirect('/login');
     }
   });
-
-  // }
 });
 
 app.post('/signup', function(req, res) {
@@ -160,8 +156,9 @@ app.post('/signup', function(req, res) {
       var hash = bcrypt.hashSync(password, salt);
       var newUser = new User({username: username, password: hash, salt: salt});
       newUser.save();
-      app.username = username;
-      app.hashedPassword = hash;
+      req.session.username = username;
+      req.session.password = hash;
+
       res.redirect('/');
     }
   });
@@ -169,12 +166,9 @@ app.post('/signup', function(req, res) {
 });
 
 app.get('/logout', function(req, res) {
-  delete app.username;
-  delete app.hashedPassword;
-  res.redirect('/login');
-  // req.session.destroy(function() {
-  //   res.redirect('/');
-  // });
+  req.session.destroy(function() {
+    res.redirect('/');
+  });
 });
 
 
