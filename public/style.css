@@ -1,7 +1,7 @@
 body {
   margin: 0;
   margin-top: 10px;
-  font-family: arial, sans-serif;
+  font-family: 'Fredoka One', cursive;
 }
 
 a {
@@ -13,12 +13,19 @@ a {
 h1 {
   font-style: italic;
   margin-bottom: 10px;
+  font-size: 69px;
+  margin-top: -10px;
+  text-align: center;
+}
+
+h2 {
+  padding-left: 5px;
 }
 
 .navigation {
   width: 100%;
   height: 40px;
-  background-color: #eee;
+  background-color: #01D1E5;
 }
 
 .navigation ul {
@@ -49,7 +56,11 @@ h1 {
 }
 
 .navigation li a.selected {
-  background-color: #ccc;
+  background-color: #01D1E5;
+}
+
+.navigation li a.selected:hover {
+  background-color: #ddd;
 }
 
 #container {
@@ -79,9 +90,17 @@ h1 {
   margin-left: 20px;
 }
 
+.visits {
+  font-size: 12px;
+}
+
 .link .visits .count {
   font-size: 46px;
   font-weight: 600;
+}
+
+span.count {
+  padding-right: 5px;
 }
 
 .link .title {
@@ -116,6 +135,10 @@ form input[type=text], form input[type=password] {
   margin: 0 10px;
 }
 
+.link img {
+  height: 60px;
+}
+
 .creator {
   height: 50px;
 }
@@ -135,3 +158,11 @@ form input[type=text], form input[type=password] {
 .creator .message {
   clear: both;
 }
+
+a.signuplink {
+  padding-left: 10px;
+}
+
+/*a.create, a.index.selected, a.logout {
+  font-size: 20px;
+}*/
