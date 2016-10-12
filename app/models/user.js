@@ -6,6 +6,7 @@ var Link = require('./link');
 
 var User = db.Model.extend({
   tableName: 'users',
+  
   links: function() {
     return this.hasMany(Link);
   }
